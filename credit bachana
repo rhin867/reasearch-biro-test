@@ -1,0 +1,41 @@
+1. PDF Extract aur LaTeX Conversion ke liye Best AI (Free/Open-Source)
+API costs bachane ke liye aapko PDF extraction apne server par ya open-source tools se karna chahiye. Mathpix best hai, par bahut expensive hai. Uski jagah inka use karein:
+
+Marker (by Vik Paruchuri): Yeh aaj ke time mein scientific PDFs (PCM) ko Markdown aur LaTeX mein convert karne ka sabse best open-source tool hai. Yeh text, math equations, aur tables ko bahut accurately extract karta hai. Yeh completely free hai (sirf server cost aayegi).
+MinerU (PDF-Extract-Kit): Yeh ek aur powerful open-source AI hai jo specifically complex PDFs se text, formulas (LaTeX), aur diagrams (cropping) ke liye banaya gaya hai. Yeh diagrams ko auto-crop karke alag save kar deta hai.
+Nougat (by Meta): Yeh directly academic papers ko math equations ke sath extract karta hai.
+Setup Tip: In tools ko Python ke through ek GPU server (jaise RunPod ya AWS) par deploy karein. Isse per-page API cost zero ho jayegi.
+
+2. Advanced Analysis ke liye Best AI (Low Cost / High Rate Limit)
+Ek baar jab PDF se text aur LaTeX nikal aaye, toh usko analyze karne (e.g., question ka topic batana, difficulty level nikalna, ya detailed solution generate karna) ke liye LLM ki zarurat padegi.
+
+Google Gemini 1.5 Flash: Yeh aapke use case ke liye sabse best rahega. Iski processing speed bahut fast hai, multimodal hai (images bhi samajh leta hai), aur iski API cost GPT-4/Claude ke comparison mein bahut kam hai. Iska free tier limit bhi kaafi bada hai.
+Llama 3 (via Groq/Together AI): Agar aap sirf text/LaTeX bhej rahe hain, toh Llama 3 70B ka API use karein. Groq par API tokens bahut saste hain aur limit jaldi hit nahi hoti.
+🚀 Recommended Architecture (Credit Limit se bachne ke liye)
+Daily maximum conversions handle karne ke liye apna backend is tarah setup karein:
+
+Step 1: Document Processing (100% Coding & Open Source AI - No API Cost)
+
+User jab PDF upload kare, toh Python backend (FastAPI/Flask) use receive kare.
+MinerU ya Marker library ka use karke PDF ko scan karein. Yeh AI model PDF se saare Mathematical Equations ko LaTeX mein aur Diagrams ko crop karke Images mein convert kar dega.
+Cost: ₹0 API cost (sirf aapke hosting server ka charge).
+Step 2: Structuring (Pure Coding)
+
+Extracted text (Markdown format) ko padhne ke liye Python mein RegEx (Regular Expressions) aur logic likhein.
+Kyunki CBT exams ka ek pattern hota hai (Q1, (A), (B), (C), (D)), aap Python scripts se automatically questions aur options ko JSON format mein alag-alag kar sakte hain. AI ko har cheez format karne mat bolein, isse tokens bachenge.
+Step 3: Advanced Analysis (Low-Cost AI API)
+
+Ab jo JSON structure ban gaya hai (Questions, Equations), usko Gemini 1.5 Flash ke API mein bhejein.
+Prompt: "Analyze this physics question. Identify the core concept, formula used, and generate a step-by-step solution."
+Kyunki aapne already PDF se kachra hata diya hai aur sirf text bheja hai, token usage bahut kam hoga aur daily limit hit nahi hogi.
+Summary / Next Steps
+Agar aap chahte hain ki hum iska coding part start karein, toh hum is flow mein kaam kar sakte hain:
+
+Main aapko ek Python script likh kar de sakta hu jo Marker ya PyMuPDF ka use karke PDF se equations aur text nikalne ka basic structure banayegi.
+Hum RegEx (Coding) ka logic bana sakte hain jo Questions aur Options ko alag karega.
+Kya aap is application ka backend Python mein banana chahte hain? Hum iski script likhna shuru kar sakte hain.
+
+7:54 AM
+
+
+
