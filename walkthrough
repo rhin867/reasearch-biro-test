@@ -1,0 +1,43 @@
+ Biro Tests: 100% Free Setup Ready!
+आपका पूरा ऐप तैयार हो गया है। क्योंकि आपके कंप्यूटर में कोडिंग सॉफ्टवेयर्स (Git, Node.js) नहीं हैं, इसलिए मैंने आपका सारा कोड सीधे तैयार करके आपके कंप्यूटर में सेव कर दिया है।
+
+अब आपको इसे ऑनलाइन चलाने (Deploy करने) के लिए नीचे दिए गए बहुत ही आसान स्टेप्स को फॉलो करना है। यह पूरी तरह से मुफ्त (Free) होगा।
+
+आपके फाइल्स कहाँ हैं?
+आपके कंप्यूटर में दो फोल्डर तैयार हो गए हैं:
+
+C:\Users\Ranjeet chaurasiya\.gemini\antigravity\scratch\biro-test (यह आपका Frontend / UI है)
+C:\Users\Ranjeet chaurasiya\.gemini\antigravity\scratch\biro-tests-backend (यह आपका Python Backend है)
+🛠️ स्टेप 1: Backend को Hugging Face पर फ्री में चलाएं
+Hugging Face पर आपको 16GB RAM वाला सर्वर बिल्कुल फ्री मिलता है, जो आपके PDF को प्रोसेस करेगा।
+
+Hugging Face की वेबसाइट पर जाएं और फ्री अकाउंट बनाएं: huggingface.co
+ऊपर "Spaces" पर क्लिक करें और "Create new Space" चुनें।
+Space Name: biro-tests-api रखें।
+License: MIT चुनें।
+Space SDK: Docker चुनें (Blank Docker template)।
+Space बनने के बाद, "Files" टैब में जाएं।
+"Add file" -> Upload files पर क्लिक करें।
+अब अपने कंप्यूटर के C:\Users\Ranjeet chaurasiya\.gemini\antigravity\scratch\biro-tests-backend फोल्डर से app.py और requirements.txt दोनों को ड्रैग करके अपलोड कर दें।
+Space की "Settings" में जाएँ, और Secrets में एक नया Secret बनाएँ:
+Name: GEMINI_API_KEY
+Value: (अपनी Google Gemini API Key डालें)
+बस! आपका बैकएंड अपने आप स्टार्ट हो जाएगा और कभी कोई लिमिट हिट नहीं होगी।
+
+🌐 स्टेप 2: Frontend को GitHub और Vercel पर अपडेट करें
+अब हमें पुराने Lovable वाले ऐप को आपके इस नए बैकएंड के साथ GitHub पर डालना है।
+
+GitHub.com पर अपने biro-test रिपॉजिटरी में जाएं।
+वहाँ "Add file" -> Upload files पर क्लिक करें।
+अब अपने कंप्यूटर के C:\Users\Ranjeet chaurasiya\.gemini\antigravity\scratch\biro-test फोल्डर को खोलें।
+वहां की सारी फाइल्स को (खासकर src/pages/CreateTest.tsx और package.json) ड्रैग करके GitHub पर अपलोड कर दें और "Commit changes" पर क्लिक करें।
+TIP
+
+जैसे ही आप GitHub पर फाइल्स अपलोड करेंगे, Vercel अपने आप पुराने वाले ऐप को इस नए कोड के साथ अपडेट (Deploy) कर देगा। आपको Vercel में कुछ भी नया करने की ज़रूरत नहीं है!
+
+बधाई हो! 🎉
+अब आपका ऐप:
+
+PDF से Text/Diagrams फ्री में निकालेगा (पायथन की मदद से)।
+Questions & Options को कोडिंग के ज़रिए अलग करेगा।
+Advanced Analysis के लिए बहुत सस्ते (Gemini Flash) का इस्तेमाल करेगा जिसकी लिमिट कभी हिट नहीं होगी!
