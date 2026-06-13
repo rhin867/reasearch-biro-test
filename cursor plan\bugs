@@ -1,0 +1,210 @@
+---
+name: Fix PDF to CBT
+overview: "PDF→CBT conversion fail ho raha hai kyunki frontend API ko hamesha empty `pdfText` bhej raha hai, aur HF backend scanned/image PDFs (Mathongo-style) ke liye `pdfBase64` support nahi karta. Fix: frontend payload theek karna + HF backend ko Gemini PDF vision enable karna — sab free tier par."
+todos:
+  - id: fix-create-test-payload
+    content: "Fix CreateTest.tsx: send pdfText from state + pdfBase64/mimeType, add scanned PDF warning, use VITE_EXTRACT_API_URL env var"
+    status: pending
+  - id: upgrade-hf-backend
+    content: "Upgrade HF Space app.py: accept pdfBase64, Gemini PDF vision with JEE prompt, return full response shape + health endpoint"
+    status: pending
+  - id: vercel-env
+    content: Add VITE_EXTRACT_API_URL to Vercel environment variables and redeploy
+    status: pending
+  - id: test-pdfs
+    content: Test all 3 QPT PDFs end-to-end on biro-tests.vercel.app — verify questions extract and CBT mode works
+    status: pending
+isProject: false
+---
+
+# PDF to CBT Conversion Fix Plan
+
+## Kya galat ho raha hai (Root Cause)
+
+Main issue **Antigravity ke migration** mein hai — Supabase AI extraction ko Hugging Face backend se replace kiya gaya, lekin integration adhura chhoda gaya.
+
+```mermaid
+flowchart TD
+    upload[User uploads PDF] --> pdfjs[pdfjs client-side text extract]
+    pdfjs --> state[pdfText state filled]
+    upload --> fileState[pdfFile state set]
+    fileState --> extractBtn[Extract Questions click]
+    extractBtn --> bug["requestBody = pdfBase64 only"]
+    bug --> apiCall["API body: pdfText = ''"]
+    apiCall --> hfError["HF returns: No text provided!"]
+    state -.->|"IGNORED when pdfFile exists"| apiCall
+```
+
+### Bug #1 — Frontend empty text bhej raha hai (PRIMARY)
+
+[`biro-test/src/pages/CreateTest.tsx`](https://github.com/rhin867/Biro-tests/blob/main/biro-test/src/pages/CreateTest.tsx) mein lines ~118–142:
+
+- PDF upload par `requestBody = { pdfBase64, mimeType }` set hota hai
+- API call sirf `{ pdfText: requestBody.pdfText || '' }` bhejti hai
+- **`pdfText` state variable bilkul use nahi hoti** jab file upload ho
+- Result: backend ko **hamesha empty string** milti hai → error: **"No text provided!"**
+
+Yahi aapka exact error hai.
+
+### Bug #2 — HF backend sirf text accept karta hai
+
+Deployed [`app.py`](https://huggingface.co/spaces/rhin867/biro-tests-api/blob/main/app.py) par `/extract-questions` endpoint:
+
+- Sirf `pdfText` field read karta hai
+- `pdfBase64` ignore hota hai (frontend banata hai par bhejta nahi)
+- Mathongo / StudyTesla PDFs aksar **scanned/image-based** hote hain — pdfjs se client-side text **empty ya bahut kam** aata hai
+- Pehle Supabase function (`extract-questions/index.ts`) PDF ko **Gemini vision** se directly padh sakta tha — yeh capability HF backend mein missing hai
+
+### Bug #3 — Antigravity ne kya galat kiya
+
+| Pehle (working design) | Antigravity ne kya kiya | Result |
+|---|---|---|
+| Supabase → `pdfBase64` + Gemini OCR | HF backend → sirf `pdfText` | Scanned PDFs fail |
+| Frontend → full payload bhejta tha | Frontend → empty `pdfText` bhejta hai | "No text" error |
+| `userApiKey` Settings se pass hota tha (AnswerKeyInput) | CreateTest mein API key pass nahi | Backup path bhi broken |
+| Local backend scratch mein PyMuPDF + regex tha | HF par alag simplified Gemini-only code | Inconsistent |
+
+**Note:** GitHub `main` branch par URL sahi hai (`https://rhin867-biro-tests-api.hf.space`), lekin payload bug ab bhi hai. Local antigravity scratch ab bhi `localhost:7860` use karta hai — deploy nahi hua.
+
+### Aapki 3 PDFs ke baare mein
+
+- **Mathongo Question Paper** — mixed text + images; client text partial ho sakta hai
+- **@StudyTesla.pdf** — aksar scanned/image-heavy; pdfjs text ≈ 0
+- **Paid Analysis By Mathongo** — analysis/solutions PDF; question extraction ke liye alag format
+
+In sab ke liye **Gemini ko PDF file directly dena zaroori** hai, sirf text nahi.
+
+---
+
+## Fix Strategy (100% Free — 0 paid credits)
+
+Cost breakdown:
+- **Vercel** — free (already deployed)
+- **Hugging Face Space (cpu-basic)** — free
+- **Google Gemini API** — free tier (aapki key HF secrets mein hai ✓)
+- **Supabase** — sirf quota/settings ke liye (extraction ke liye nahi)
+
+```mermaid
+flowchart LR
+    vercel[Vercel Frontend] -->|"pdfText + pdfBase64"| hf[HF biro-tests-api]
+    hf --> gemini[Gemini 2.0 Flash Free]
+    gemini --> json[Structured JSON questions]
+    json --> vercel
+    vercel --> cbt[CBT Test saved locally]
+```
+
+---
+
+## Implementation Steps
+
+### Step 1: Fix Frontend — [`CreateTest.tsx`](biro-test/src/pages/CreateTest.tsx)
+
+**Change `extractQuestions` function:**
+
+1. API body mein **dono** bhejo:
+   - `pdfText` — state se (`pdfText` variable), `requestBody` se nahi
+   - `pdfBase64` + `mimeType` — jab `pdfFile` ho
+
+```typescript
+// Correct payload
+body: JSON.stringify({
+  pdfText: pdfText.trim(),
+  ...(pdfFile ? {
+    pdfBase64: await fileToBase64(pdfFile),
+    mimeType: pdfFile.type || 'application/pdf',
+  } : {}),
+})
+```
+
+2. Upload ke baad validation add karo:
+   - Agar `fullText.trim().length < 200` → toast: *"Scanned PDF detected — AI vision mode use hoga"*
+   - User ko blank text ka false hope nahi milega
+
+3. Backend URL ko env var se configurable banao:
+   - `VITE_EXTRACT_API_URL=https://rhin867-biro-tests-api.hf.space/extract-questions`
+   - Vercel Environment Variables mein set karo (hardcode hatao)
+
+4. Error handling improve karo:
+   - HTTP non-200 par meaningful message
+   - `result.error` ko user-friendly Hindi/English toast mein dikhao
+
+### Step 2: Upgrade HF Backend — [`app.py`](https://huggingface.co/spaces/rhin867/biro-tests-api)
+
+Replace `/extract-questions` with logic matching original Supabase quality:
+
+1. Accept: `pdfText`, `pdfBase64`, `mimeType`
+2. **Priority logic:**
+   - Agar `pdfBase64` hai → Gemini ko PDF inline bhejo (vision/OCR — scanned PDFs ke liye)
+   - Warna `pdfText` use karo
+   - Dono empty → `{"error": "No PDF content provided!"}`
+3. Use **JEE-specific system prompt** from [`supabase/functions/extract-questions/index.ts`](biro-test/supabase/functions/extract-questions/index.ts) (LaTeX, subjects, MSQ/Numerical, diagrams)
+4. Model: `gemini-2.0-flash` (free, PDF-native support) with fallback to `gemini-1.5-flash`
+5. Return same shape frontend expects:
+   - `questions`, `totalExtracted`, `subjectCounts`, `examTitle`
+6. Add `GET /` health endpoint (HF monitoring ke liye)
+7. Update `requirements.txt` if needed (current deps sufficient)
+
+### Step 3: Vercel Environment Variable
+
+Vercel dashboard → Biro-tests project → Settings → Environment Variables:
+
+```
+VITE_EXTRACT_API_URL = https://rhin867-biro-tests-api.hf.space/extract-questions
+```
+
+Redeploy trigger hoga automatically on git push.
+
+### Step 4: Verify HF Secret (already done ✓)
+
+Aapne confirm kiya `GEMINI_API_KEY` HF Space secrets mein hai. Implementation ke baad test call se verify karenge.
+
+### Step 5: Test with Your 3 PDFs
+
+Test order (har ek ke baad question count + sample quality check):
+
+1. **Mathongo Question Paper** — primary CBT conversion target (~75 questions expected for JEE-style)
+2. **@StudyTesla.pdf** — scanned PDF test (pdfBase64 path must work)
+3. **Paid Analysis** — optional; yeh solutions PDF hai, question paper nahi — isse answer key extraction ya analysis flow ke liye use karna better (`ExternalAnalysis` page already Supabase use karti hai)
+
+Manual test checklist:
+- Upload PDF → Configure → Extract Questions
+- No "No text provided!" error
+- Review step par questions dikhen with options
+- Create Test → My Tests mein appear ho
+- CBT mode mein questions render hon (LaTeX + diagrams)
+
+---
+
+## Files to Change
+
+| File | Repo | Change |
+|---|---|---|
+| [`biro-test/src/pages/CreateTest.tsx`](biro-test/src/pages/CreateTest.tsx) | Biro-tests (GitHub) | Fix API payload, env URL, scanned PDF warning |
+| [`app.py`](https://huggingface.co/spaces/rhin867/biro-tests-api) | HF Space rhin867/biro-tests-api | Add pdfBase64 + Gemini JEE prompt |
+| Vercel env | Vercel dashboard | `VITE_EXTRACT_API_URL` |
+
+**No changes needed:** Supabase functions (keep as fallback for AnswerKeyInput/ExternalAnalysis), quota system, storage, CBT exam UI.
+
+---
+
+## Optional Fallback (if HF ever sleeps)
+
+CreateTest mein dual-path logic (minimal):
+
+```typescript
+// Try HF first, fallback to Supabase with user Gemini key
+const userApiKey = getUserApiKey();
+// supabase.functions.invoke('extract-questions', { body: { pdfBase64, mimeType, userApiKey } })
+```
+
+Yeh tab useful jab HF Space down ho. Settings page par Gemini key save karna already supported hai.
+
+---
+
+## Expected Outcome
+
+After fix:
+- PDF upload → AI extraction → CBT test create — **working on biro-tests.vercel.app**
+- Mathongo QPT 1 Question Paper → full MCQ test
+- Scanned PDFs → Gemini vision se extract (free tier)
+- Zero paid credits (Vercel free + HF free + Gemini free tier)
